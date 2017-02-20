@@ -30,7 +30,7 @@ def get_words():
         words.append(lines[i].split())
         targets.append(lines[i + 1].split())
     print words[1]
-    return sentences[:50], words[:50], targets[:50]
+    return sentences[:200], words[:200], targets[:200]
 
 
 def get_weights():
@@ -51,7 +51,7 @@ def get_weights():
                 tmp.append(float(w))
                 i += 1
         weights.append(tmp)
-    return weights[:50], ty[:50], py[:50]
+    return weights[:200], ty[:200], py[:200]
 
 class Sentence(tornado.web.UIModule):
     def embedded_css(self):
@@ -59,7 +59,7 @@ class Sentence(tornado.web.UIModule):
 
     def render(self, number, sentence, word, weight, target, ty, py):
         html = ''
-        html += '<dl>target:%s, true y: %s, predict y:%s</br></br>' % (' '.join(target), ty, py)
+        html += '<dl>No.%s target:%s, true y: %s, predict y:%s</br></br>' % (number, ' '.join(target), ty, py)
         for wd, wt in zip(word, weight):
             wt = max(99 - int(wt * 200), 10)
             wt = '#12' + str(wt) + '90'

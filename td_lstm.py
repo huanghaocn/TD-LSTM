@@ -6,6 +6,7 @@
 
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import precision_score, recall_score, f1_score
 from utils import load_w2v, batch_index, load_inputs_twitter, load_word_id_mapping
 
 
@@ -134,6 +135,8 @@ class LSTM(object):
             correct_pred = tf.equal(tf.argmax(prob, 1), tf.argmax(self.y, 1))
             accuracy = tf.reduce_sum(tf.cast(correct_pred, tf.int32))
             acc_ = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+            true_y = tf.argmax(self.y, 1)
+            pred_y = tf.argmax(prob, 1)
 
         with tf.Session() as sess:
             summary_loss = tf.scalar_summary('loss', cost)
@@ -165,22 +168,30 @@ class LSTM(object):
             sess.run(init)
 
             max_acc = 0.
+            max_ty, max_py = None, None
             for i in xrange(self.n_iter):
                 for train, _ in self.get_batch_data(tr_x, tr_sen_len, tr_x_bw, tr_sen_len_bw, tr_y, self.batch_size, 1.0):
                     _, step, summary = sess.run([optimizer, global_step, train_summary_op], feed_dict=train)
                     train_summary_writer.add_summary(summary, step)
                 acc, loss, cnt, summary  = 0., 0., 0, None
+                ty, py = [], []
                 for test, num in self.get_batch_data(te_x, te_sen_len, te_x_bw, te_sen_len_bw, te_y, 2000, 1.0):
-                    _loss, _acc, summary = sess.run([cost, accuracy, test_summary_op], feed_dict=test)
+                    _loss, _acc, summary, _ty, _py = sess.run([cost, accuracy, test_summary_op, true_y, pred_y], feed_dict=test)
+                    ty += list(_ty)
+                    py += list(_py)
                     acc += _acc
                     loss += _loss * num
                     cnt += num
-                print cnt
-                print acc
                 test_summary_writer.add_summary(summary, step)
                 print 'Iter {}: mini-batch loss={:.6f}, test acc={:.6f}'.format(step, loss / cnt, acc / cnt)
                 if acc / cnt > max_acc:
                     max_acc = acc / cnt
+                    max_ty = ty
+                    max_py = py
+            print 'P:', precision_score(max_ty, max_py, average=None)
+            print 'R:', recall_score(max_ty, max_py, average=None)
+            print 'F:', f1_score(max_ty, max_py, average=None)
+
             print 'Optimization Finished! Max acc={}'.format(max_acc)
 
             print 'Learning_rate={}, iter_num={}, batch_size={}, hidden_num={}, l2={}'.format(

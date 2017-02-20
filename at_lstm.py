@@ -5,6 +5,7 @@
 
 
 import tensorflow as tf
+from sklearn.metrics import precision_score, recall_score, f1_score
 from utils import load_w2v, batch_index, load_word_embedding, load_aspect2id, load_inputs_twitter_at
 
 
@@ -329,6 +330,9 @@ class LSTM(object):
                     max_alpha = alpha
                     max_ty = ty
                     max_py = py
+            print 'P:', precision_score(max_ty, max_py, average=None)
+            print 'R:', recall_score(max_ty, max_py, average=None)
+            print 'F:', f1_score(max_ty, max_py, average=None)
 
             print 'Optimization Finished! Max acc={}'.format(max_acc)
             fp = open('weight.txt', 'w')
