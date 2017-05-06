@@ -37,11 +37,40 @@ Conference on Empirical Methods in Natural Language Processing (EMNLP 2016, full
     ├── data
     │   ├── restaurant
     │   └── twitter
-    ├── lstm.py
+    ├── lstm.py           Paper 1
     ├── tc_lstm.py        Paper 1
     ├── td_lstm.py        Paper 1
     ├── at_lstm.py        Paper 2
     ├── utils.py
 
 
+## Paper 1
+
+The corpus is **twitter**. We just got our results on test set.
+
+|Method|Origin-Acc|Mine-Acc|
+|:------|:------|:------|
+|LSTM|66.5%|68.03%|
+|TD-LSTM|70.8%|69.74%|
+|TC-LSTM|71.5%|70.20%|
+
+## Paper 2
+
+The corpus is **restaurant**.
+
+|Method|Origin-Acc|Mine-Acc|
+|:------|:------|:------|
+|LSTM|74.3%|76.40%|
+|TD-LSTM|75.6%|78.31%|
+|AE-LSTM|76.6%|76.81%|
+|ATAE-LSTM|77.2%|77.01%|
+
+The corpus is **laptop**.
+
+Method|Origin-Acc|Mine-Acc|
+|:------|:------|:------|
+|LSTM|66.50%|%|
+|TD-LSTM|68.10%|%|
+|AE-LSTM|68.90%|%|
+|ATAE-LSTM|68.70%|%|
 

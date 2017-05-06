@@ -172,7 +172,7 @@ class LSTM(object):
         target = tf.ones([batch_size, self.max_sentence_len, self.embedding_dim], dtype=tf.float32) * target
         in_t = tf.concat([inputs, target], 2)
         in_t = tf.nn.dropout(in_t, keep_prob=self.keep_prob1)
-        cell = tf.nn.rnn_cell.LSTMCell
+        cell = tf.contrib.rnn.LSTMCell
         hiddens = self.dynamic_rnn(cell, in_t, self.sen_len, self.max_sentence_len, 'AT', 'all')
 
         h_t = tf.reshape(tf.concat([hiddens, target], 2), [-1, self.n_hidden + self.embedding_dim])
