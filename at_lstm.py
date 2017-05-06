@@ -69,7 +69,7 @@ class LSTM(object):
                 'softmax': tf.get_variable(
                     name='softmax_w',
                     shape=[self.n_hidden, self.n_class],
-                    initializer=tf.random_uniform_initializer(-0.01, 0.01),
+                    initializer=tf.random_uniform_initializer(-0.003, 0.003),
                     regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
                 )
             }
@@ -79,7 +79,7 @@ class LSTM(object):
                 'softmax': tf.get_variable(
                     name='softmax_b',
                     shape=[self.n_class],
-                    initializer=tf.random_uniform_initializer(-0.01, 0.01),
+                    initializer=tf.random_uniform_initializer(-0.003, 0.003),
                     regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
                 )
             }
@@ -87,25 +87,25 @@ class LSTM(object):
         self.W = tf.get_variable(
             name='W',
             shape=[self.n_hidden + self.embedding_dim, self.n_hidden + self.embedding_dim],
-            initializer=tf.random_uniform_initializer(-0.01, 0.01),
+            initializer=tf.random_uniform_initializer(-0.003, 0.003),
             regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
         )
         self.w = tf.get_variable(
             name='w',
             shape=[self.n_hidden + self.embedding_dim, 1],
-            initializer=tf.random_uniform_initializer(-0.01, 0.01),
+            initializer=tf.random_uniform_initializer(-0.003, 0.003),
             regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
         )
         self.Wp = tf.get_variable(
             name='Wp',
             shape=[self.n_hidden, self.n_hidden],
-            initializer=tf.random_uniform_initializer(-0.01, 0.01),
+            initializer=tf.random_uniform_initializer(-0.003, 0.003),
             regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
         )
         self.Wx = tf.get_variable(
             name='Wx',
             shape=[self.n_hidden, self.n_hidden],
-            initializer=tf.random_uniform_initializer(-0.01, 0.01),
+            initializer=tf.random_uniform_initializer(-0.003, 0.003),
             regularizer=tf.contrib.layers.l2_regularizer(self.l2_reg)
         )
 

@@ -84,7 +84,7 @@ class LSTM(object):
 
         with tf.name_scope('dynamic_rnn'):
             outputs, state = tf.nn.dynamic_rnn(
-                tf.nn.rnn_cell.LSTMCell(self.n_hidden),
+                tf.contrib.rnn.LSTMCell(self.n_hidden),
                 inputs=inputs,
                 sequence_length=self.sen_len,
                 dtype=tf.float32,
@@ -114,17 +114,17 @@ class LSTM(object):
             accuracy = tf.reduce_sum(tf.cast(correct_pred, tf.int32))
 
         with tf.Session() as sess:
-            summary_loss = tf.scalar_summary('loss', cost)
-            summary_acc = tf.scalar_summary('acc', accuracy)
-            train_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            validate_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            test_summary_op = tf.merge_summary([summary_loss, summary_acc])
+            summary_loss = tf.summary.scalar('loss', cost)
+            summary_acc = tf.summary.scalar('acc', accuracy)
+            train_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            validate_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            test_summary_op = tf.summary.merge([summary_loss, summary_acc])
             import time
             timestamp = str(int(time.time()))
             _dir = 'logs/' + str(timestamp) + '_' + self.type_ + '_r' + str(self.learning_rate) + '_b' + str(self.batch_size) + '_l' + str(self.l2_reg)
-            train_summary_writer = tf.train.SummaryWriter(_dir + '/train', sess.graph)
-            test_summary_writer = tf.train.SummaryWriter(_dir + '/test', sess.graph)
-            validate_summary_writer = tf.train.SummaryWriter(_dir + '/validate', sess.graph)
+            train_summary_writer = tf.summary.FileWriter(_dir + '/train', sess.graph)
+            test_summary_writer = tf.summary.FileWriter(_dir + '/test', sess.graph)
+            validate_summary_writer = tf.summary.FileWriter(_dir + '/validate', sess.graph)
 
             tr_x, tr_sen_len, tr_y = load_inputs_twitter(
                 FLAGS.train_file_path,
@@ -137,7 +137,7 @@ class LSTM(object):
                 self.max_sentence_len
             )
 
-            init = tf.initialize_all_variables()
+            init = tf.global_variables_initializer()
             sess.run(init)
 
             max_acc = 0.
@@ -155,7 +155,6 @@ class LSTM(object):
                 print acc
                 test_summary_writer.add_summary(summary, step)
                 print 'Iter {}: mini-batch loss={:.6f}, test acc={:.6f}'.format(step, loss / cnt, acc / cnt)
-                test_summary_writer.add_summary(summary, step)
                 if acc / cnt > max_acc:
                     max_acc = acc / cnt
             print 'Optimization Finished! Max acc={}'.format(max_acc)
