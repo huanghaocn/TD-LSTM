@@ -124,7 +124,7 @@ class LSTM(object):
 
         with tf.name_scope('loss'):
             reg_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-            cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prob, self.y)) + sum(reg_loss)
+            cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=self.y)) + sum(reg_loss)
 
         with tf.name_scope('train'):
             global_step = tf.Variable(0, name="tr_global_step", trainable=False)
