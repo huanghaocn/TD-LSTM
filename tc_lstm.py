@@ -93,7 +93,7 @@ class LSTM(object):
 
         with tf.name_scope('forward_lstm'):
             outputs_fw, state_fw = tf.nn.dynamic_rnn(
-                tf.nn.rnn_cell.LSTMCell(self.n_hidden),
+                tf.contrib.rnn.LSTMCell(self.n_hidden),
                 inputs=inputs_fw,
                 sequence_length=self.sen_len,
                 dtype=tf.float32,
@@ -105,7 +105,7 @@ class LSTM(object):
 
         with tf.name_scope('backward_lstm'):
             outputs_bw, state_bw = tf.nn.dynamic_rnn(
-                tf.nn.rnn_cell.LSTMCell(self.n_hidden),
+                tf.contrib.rnn.LSTMCell(self.n_hidden),
                 inputs=inputs_bw,
                 sequence_length=self.sen_len_bw,
                 dtype=tf.float32,
@@ -115,7 +115,7 @@ class LSTM(object):
             index = tf.range(0, batch_size) * self.max_sentence_len + (self.sen_len_bw - 1)
             output_bw = tf.gather(tf.reshape(outputs_bw, [-1, self.n_hidden]), index)  # batch_size * n_hidden
 
-        output = tf.concat(1, [output_fw, output_bw])  # batch_size * 2n_hidden
+        output = tf.concat([output_fw, output_bw], 1)  # batch_size * 2n_hidden
         predict = tf.matmul(output, self.weights['softmax_bi_lstm']) + self.biases['softmax_bi_lstm']
         return predict
 
@@ -125,8 +125,8 @@ class LSTM(object):
         target = tf.reduce_mean(tf.nn.embedding_lookup(self.word_embedding, self.target_words), 1, keep_dims=True)
         batch_size = tf.shape(inputs_bw)[0]
         target = tf.zeros([batch_size, self.max_sentence_len, self.embedding_dim]) + target
-        inputs_fw = tf.concat(2, [inputs_fw, target])
-        inputs_bw = tf.concat(2, [inputs_bw, target])
+        inputs_fw = tf.concat([inputs_fw, target], 2)
+        inputs_bw = tf.concat([inputs_bw, target], 2)
         prob = self.bi_dynamic_lstm(inputs_fw, inputs_bw)
 
         with tf.name_scope('loss'):
@@ -144,17 +144,17 @@ class LSTM(object):
             pred_y = tf.argmax(prob, 1)
 
         with tf.Session() as sess:
-            summary_loss = tf.scalar_summary('loss', cost)
-            summary_acc = tf.scalar_summary('acc', _acc)
-            train_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            validate_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            test_summary_op = tf.merge_summary([summary_loss, summary_acc])
+            summary_loss = tf.summary.scalar('loss', cost)
+            summary_acc = tf.summary.scalar('acc', _acc)
+            train_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            validate_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            test_summary_op = tf.summary.merge([summary_loss, summary_acc])
             import time
             timestamp = str(int(time.time()))
             _dir = 'logs/' + str(timestamp) + '_' + self.type_ + '_r' + str(self.learning_rate) + '_b' + str(self.batch_size) + '_l' + str(self.l2_reg)
-            train_summary_writer = tf.train.SummaryWriter(_dir + '/train', sess.graph)
-            test_summary_writer = tf.train.SummaryWriter(_dir + '/test', sess.graph)
-            validate_summary_writer = tf.train.SummaryWriter(_dir + '/validate', sess.graph)
+            train_summary_writer = tf.summary.FileWriter(_dir + '/train', sess.graph)
+            test_summary_writer = tf.summary.FileWriter(_dir + '/test', sess.graph)
+            validate_summary_writer = tf.summary.FileWriter(_dir + '/validate', sess.graph)
 
             tr_x, tr_sen_len, tr_x_bw, tr_sen_len_bw, tr_y, tr_target_word = load_inputs_twitter(
                 FLAGS.train_file_path,
@@ -169,7 +169,7 @@ class LSTM(object):
                 self.type_
             )
 
-            init = tf.initialize_all_variables()
+            init = tf.global_variables_initializer()
             sess.run(init)
 
             max_acc = 0.

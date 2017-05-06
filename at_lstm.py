@@ -137,9 +137,9 @@ class LSTM(object):
         if out_type == 'last':
             outputs_fw, outputs_bw = outputs
             outputs_bw = tf.reverse_sequence(outputs_bw, tf.cast(length, tf.int64), seq_dim=1)
-            outputs = tf.concat(2, [outputs_fw, outputs_bw])
+            outputs = tf.concat([outputs_fw, outputs_bw], 2)
         else:
-            outputs = tf.concat(2, outputs)  # batch_size * max_len * 2n_hidden
+            outputs = tf.concat(outputs, 2)  # batch_size * max_len * 2n_hidden
         batch_size = tf.shape(outputs)[0]
         if out_type == 'last':
             index = tf.range(0, batch_size) * max_len + (length - 1)
@@ -157,31 +157,31 @@ class LSTM(object):
         batch_size = tf.shape(inputs)[0]
         target = tf.reshape(target, [-1, 1, self.embedding_dim])
         target = tf.ones([batch_size, self.max_sentence_len, self.embedding_dim], dtype=tf.float32) * target
-        inputs = tf.concat(2, [inputs, target])
+        inputs = tf.concat([inputs, target], 2)
         inputs = tf.nn.dropout(inputs, keep_prob=self.keep_prob1)
 
-        cell = tf.nn.rnn_cell.LSTMCell
+        cell = tf.contrib.rnn.LSTMCell
         outputs = self.dynamic_rnn(cell, inputs, self.sen_len, self.max_sentence_len, 'AE', FLAGS.t)
 
         return LSTM.softmax_layer(outputs, self.weights['softmax'], self.biases['softmax'], self.keep_prob2)
 
-    def AT(self, inputs, target, type_=''):
+    def ATAE(self, inputs, target, type_=''):
         print 'I am AT.'
         batch_size = tf.shape(inputs)[0]
         target = tf.reshape(target, [-1, 1, self.embedding_dim])
         target = tf.ones([batch_size, self.max_sentence_len, self.embedding_dim], dtype=tf.float32) * target
-        in_t = tf.concat(2, [inputs, target])
+        in_t = tf.concat([inputs, target], 2)
         in_t = tf.nn.dropout(in_t, keep_prob=self.keep_prob1)
         cell = tf.nn.rnn_cell.LSTMCell
         hiddens = self.dynamic_rnn(cell, in_t, self.sen_len, self.max_sentence_len, 'AT', 'all')
 
-        h_t = tf.reshape(tf.concat(2, [hiddens, target]), [-1, self.n_hidden + self.embedding_dim])
+        h_t = tf.reshape(tf.concat([hiddens, target], 2), [-1, self.n_hidden + self.embedding_dim])
 
         M = tf.matmul(tf.tanh(tf.matmul(h_t, self.W)), self.w)
         alpha = LSTM.softmax(tf.reshape(M, [-1, 1, self.max_sentence_len]), self.sen_len, self.max_sentence_len)
         self.alpha = tf.reshape(alpha, [-1, self.max_sentence_len])
 
-        r = tf.reshape(tf.batch_matmul(alpha, hiddens), [-1, self.n_hidden])
+        r = tf.reshape(tf.matmul(alpha, hiddens), [-1, self.n_hidden])
         index = tf.range(0, batch_size) * self.max_sentence_len + (self.sen_len - 1)
         hn = tf.gather(tf.reshape(hiddens, [-1, self.n_hidden]), index)  # batch_size * n_hidden
 
@@ -224,8 +224,8 @@ class LSTM(object):
         aspect = tf.nn.embedding_lookup(self.aspect_embedding, self.aspect_id)
         if FLAGS.method == 'AE':
             prob = self.AE(inputs, aspect, FLAGS.t)
-        elif FLAGS.method == 'AT':
-            prob = self.AT(inputs, aspect, FLAGS.t)
+        elif FLAGS.method == 'ATAE':
+            prob = self.ATAE(inputs, aspect, FLAGS.t)
 
         with tf.name_scope('loss'):
             reg_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
@@ -256,21 +256,21 @@ class LSTM(object):
                 FLAGS.n_hidden,
                 FLAGS.n_class
             )
-            summary_loss = tf.scalar_summary('loss' + title, cost)
-            summary_acc = tf.scalar_summary('acc' + title, _acc)
-            train_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            validate_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            test_summary_op = tf.merge_summary([summary_loss, summary_acc])
+            summary_loss = tf.summary.scalar('loss' + title, cost)
+            summary_acc = tf.summary.scalar('acc' + title, _acc)
+            train_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            validate_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            test_summary_op = tf.summary.merge([summary_loss, summary_acc])
             import time
             timestamp = str(int(time.time()))
             _dir = 'logs/' + str(timestamp) + '_' + title
-            train_summary_writer = tf.train.SummaryWriter(_dir + '/train', sess.graph)
-            test_summary_writer = tf.train.SummaryWriter(_dir + '/test', sess.graph)
-            validate_summary_writer = tf.train.SummaryWriter(_dir + '/validate', sess.graph)
+            train_summary_writer = tf.summary.FileWriter(_dir + '/train', sess.graph)
+            test_summary_writer = tf.summary.FileWriter(_dir + '/test', sess.graph)
+            validate_summary_writer = tf.summary.FileWriter(_dir + '/validate', sess.graph)
 
             saver = tf.train.Saver(write_version=tf.train.SaverDef.V2)
 
-            init = tf.initialize_all_variables()
+            init = tf.global_variables_initializer()
             sess.run(init)
 
             # saver.restore(sess, 'models/logs/1481529975__r0.005_b2000_l0.05self.softmax/-1072')
@@ -306,11 +306,10 @@ class LSTM(object):
                 acc, loss, cnt = 0., 0., 0
                 flag = True
                 summary, step = None, None
-                alpha = None
                 ty, py = None, None
                 for test, num in self.get_batch_data(te_x, te_sen_len, te_y, te_target_word, 2000, 1.0, 1.0, False):
-                    _loss, _acc, _summary, _step, alpha, ty, py = sess.run([cost, accuracy, validate_summary_op, global_step, self.alpha, true_y, pred_y],
-                                                            feed_dict=test)
+                    _loss, _acc, _summary, _step, ty, py = sess.run(
+                        [cost, accuracy, validate_summary_op, global_step, true_y, pred_y], feed_dict=test)
                     acc += _acc
                     loss += _loss * num
                     cnt += num
@@ -318,7 +317,6 @@ class LSTM(object):
                         summary = _summary
                         step = _step
                         flag = False
-                        alpha = alpha
                         ty = ty
                         py = py
                 print 'all samples={}, correct prediction={}'.format(cnt, acc)
@@ -327,7 +325,6 @@ class LSTM(object):
                 print 'Iter {}: mini-batch loss={:.6f}, test acc={:.6f}'.format(i, loss / cnt, acc / cnt)
                 if acc / cnt > max_acc:
                     max_acc = acc / cnt
-                    max_alpha = alpha
                     max_ty = ty
                     max_py = py
             print 'P:', precision_score(max_ty, max_py, average=None)
@@ -335,9 +332,6 @@ class LSTM(object):
             print 'F:', f1_score(max_ty, max_py, average=None)
 
             print 'Optimization Finished! Max acc={}'.format(max_acc)
-            fp = open('weight.txt', 'w')
-            for y1, y2, ws in zip(max_ty, max_py, max_alpha):
-                fp.write(str(y1) + ' ' + str(y2) + ' ' + ' '.join([str(w) for w in ws]) + '\n')
 
             print 'Learning_rate={}, iter_num={}, batch_size={}, hidden_num={}, l2={}'.format(
                 self.learning_rate,

@@ -91,7 +91,7 @@ class LSTM(object):
 
         with tf.name_scope('forward_lstm'):
             outputs_fw, state_fw = tf.nn.dynamic_rnn(
-                tf.nn.rnn_cell.LSTMCell(self.n_hidden),
+                tf.contrib.rnn.LSTMCell(self.n_hidden),
                 inputs=inputs_fw,
                 sequence_length=self.sen_len,
                 dtype=tf.float32,
@@ -103,7 +103,7 @@ class LSTM(object):
 
         with tf.name_scope('backward_lstm'):
             outputs_bw, state_bw = tf.nn.dynamic_rnn(
-                tf.nn.rnn_cell.LSTMCell(self.n_hidden),
+                tf.contrib.rnn.LSTMCell(self.n_hidden),
                 inputs=inputs_bw,
                 sequence_length=self.sen_len_bw,
                 dtype=tf.float32,
@@ -113,7 +113,7 @@ class LSTM(object):
             index = tf.range(0, batch_size) * self.max_sentence_len + (self.sen_len_bw - 1)
             output_bw = tf.gather(tf.reshape(outputs_bw, [-1, self.n_hidden]), index)  # batch_size * n_hidden
 
-        output = tf.concat(1, [output_fw, output_bw])  # batch_size * 2n_hidden
+        output = tf.concat([output_fw, output_bw], 1)  # batch_size * 2n_hidden
         predict = tf.matmul(output, self.weights['softmax_bi_lstm']) + self.biases['softmax_bi_lstm']
         return predict
 
@@ -125,7 +125,6 @@ class LSTM(object):
         with tf.name_scope('loss'):
             reg_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
             cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(prob, self.y)) + sum(reg_loss)
-
 
         with tf.name_scope('train'):
             global_step = tf.Variable(0, name="tr_global_step", trainable=False)
@@ -139,17 +138,17 @@ class LSTM(object):
             pred_y = tf.argmax(prob, 1)
 
         with tf.Session() as sess:
-            summary_loss = tf.scalar_summary('loss', cost)
-            summary_acc = tf.scalar_summary('acc', acc_)
-            train_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            validate_summary_op = tf.merge_summary([summary_loss, summary_acc])
-            test_summary_op = tf.merge_summary([summary_loss, summary_acc])
+            summary_loss = tf.summary.scalar('loss', cost)
+            summary_acc = tf.summary.scalar('acc', acc_)
+            train_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            validate_summary_op = tf.summary.merge([summary_loss, summary_acc])
+            test_summary_op = tf.summary.merge([summary_loss, summary_acc])
             import time
             timestamp = str(int(time.time()))
             _dir = 'logs/' + str(timestamp) + '_' + self.type_ + '_r' + str(self.learning_rate) + '_b' + str(self.batch_size) + '_l' + str(self.l2_reg)
-            train_summary_writer = tf.train.SummaryWriter(_dir + '/train', sess.graph)
-            test_summary_writer = tf.train.SummaryWriter(_dir + '/test', sess.graph)
-            validate_summary_writer = tf.train.SummaryWriter(_dir + '/validate', sess.graph)
+            train_summary_writer = tf.summary.FileWriter(_dir + '/train', sess.graph)
+            test_summary_writer = tf.summary.FileWriter(_dir + '/test', sess.graph)
+            validate_summary_writer = tf.summary.FileWriter(_dir + '/validate', sess.graph)
 
             tr_x, tr_sen_len, tr_x_bw, tr_sen_len_bw, tr_y = load_inputs_twitter(
                 FLAGS.train_file_path,
@@ -164,7 +163,7 @@ class LSTM(object):
                 self.type_
             )
 
-            init = tf.initialize_all_variables()
+            init = tf.global_variables_initializer()
             sess.run(init)
 
             max_acc = 0.
@@ -173,7 +172,7 @@ class LSTM(object):
                 for train, _ in self.get_batch_data(tr_x, tr_sen_len, tr_x_bw, tr_sen_len_bw, tr_y, self.batch_size, 1.0):
                     _, step, summary = sess.run([optimizer, global_step, train_summary_op], feed_dict=train)
                     train_summary_writer.add_summary(summary, step)
-                acc, loss, cnt, summary  = 0., 0., 0, None
+                acc, loss, cnt, summary = 0., 0., 0, None
                 ty, py = [], []
                 for test, num in self.get_batch_data(te_x, te_sen_len, te_x_bw, te_sen_len_bw, te_y, 2000, 1.0):
                     _loss, _acc, summary, _ty, _py = sess.run([cost, accuracy, test_summary_op, true_y, pred_y], feed_dict=test)
